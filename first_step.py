@@ -8,15 +8,28 @@ import random
 from PIL import Image
 import numpy as np
 import pandas as pd 
+import shutil
 
 
-train_dir = "cloud_dataset/train"
-test_dir = "cloud_dataset/test"
-val_dir = "cloud_dataset/val"
+
+# ---------------------------------------------------------------------------------------------------
+raw_train_dir = "raw_cloud_dataset/train"
+raw_test_dir = "raw_cloud_dataset/test"
+raw_val_dir = "raw_cloud_dataset/val"
+
+processed_train_dir = "cloud_dataset/train"
+processed_val_dir = "cloud_dataset/val"
 
 img_width, img_heigth = 150, 150
 batch_size = 32
 
+if os.path.exists("cloud_dataset"):
+    shutil.rmtree("cloud_dataset")
+os.makedirs("cloud_dataset", exist_ok=True)
+
+shutil.copytree("raw_cloud_dataset/train", "cloud_dataset/train")
+shutil.copytree("raw_cloud_dataset/val", "cloud_dataset/val")
+# ---------------------------------------------------------------------------------------------------
 
 
 
@@ -29,17 +42,21 @@ def check_image(file_path):
         return True
     except Exception as e:
         print(f"Uszkodzony obraz {file_path}, błąd {e}")
+        img.close()
+        os.remove(file_path)
         return False
 def check_rgb(file_path):
     img = Image.open(file_path)
     if img.mode != "RGB":
-        # print(file_path)
+        print(file_path)
+        img.close()
+        os.remove(file_path)
         return False
     return True
 
 count_bad = 0
 count_not_rgb = 0
-for root, dir, files in os.walk(train_dir):
+for root, dir, files in os.walk(processed_train_dir):
     for file in files:
         file_path = os.path.join(root, file)
         if not check_image(file_path):
@@ -48,107 +65,16 @@ for root, dir, files in os.walk(train_dir):
             count_not_rgb += 1
             
 print("There are this many bad images: ", count_bad)
-print("One image was not in RGB and has been removed")
 print("There are this many images not in RGB: ", count_not_rgb)
+# os.remove("cloud_dataset/train/rainy/033.jpg")
+# Removing ai image
+os.remove("cloud_dataset/train/Rainy/original_size_img_77_jpg.rf.c3154c897671512abd8b90ebdb1b377c.jpg")
 print()
 # ---------------------------------------------------------------------------------------------------
 
 
 
 
-
-# REMOVING OUTLIERS
-# ---------------------------------------------------------------------------------------------------
-def is_valid(image):
-    width, height = image.size[0], image.size[1]
-    return width > 100 and width < 700 and height > 100 and height < 550
-
-valid_images = []
-classes = []
-
-for root, dir, files in os.walk(train_dir):
-    for file in files:
-        file_path = os.path.join(root, file)
-        with Image.open(file_path) as img:
-            if is_valid(img):
-                valid_images.append(file_path)
-                classes.append(os.path.basename(root))
-
-df = pd.DataFrame({'filename': valid_images, 'class': classes})
-# ---------------------------------------------------------------------------------------------------
-
-
-
-
-
-#GENERATORS
-# ---------------------------------------------------------------------------------------------------
-train_datagen = ImageDataGenerator(
-    rescale = 1./255,
-    rotation_range = 20,
-    width_shift_range = 0.2,
-    height_shift_range = 0.2,
-    shear_range = 0.2,
-    zoom_range = 0.2,
-    horizontal_flip = True,
-    fill_mode = "nearest"
-)
-
-train_generator = train_datagen.flow_from_dataframe(
-    dataframe = df,
-    x_col = "filename",
-    y_col = "class",
-    target_size = (img_width, img_heigth),
-    batch_size = batch_size,
-    class_mode = "categorical"
-)
-
-
-validation_datagen = ImageDataGenerator(rescale = 1./255)
-
-validation_generator = validation_datagen.flow_from_directory(
-    val_dir,
-    target_size = (img_width, img_heigth),
-    batch_size = batch_size,
-    class_mode = "categorical"
-)
-print()
-# ---------------------------------------------------------------------------------------------------
-
-
-
-
-# GATHERING DATA INFORMATION
-# ---------------------------------------------------------------------------------------------------
-train_data = []
-
-print("Train dataset:")
-print("ALL: ", train_generator.samples)
-train_data.append(["All", train_generator.samples, "Train"])
-
-classes = os.listdir(train_dir)
-for class_name in classes:
-    class_dir = os.path.join(train_dir, class_name)
-    num_images = len(os.listdir(class_dir))
-    print(f"Class {class_name}: {num_images} images")
-    train_data.append([class_name, num_images, "Train"])
-print()
-# ---------------------------------------------------------------------------------------------------
-
-
-
-
-# DATA PRESENTATION
-# ---------------------------------------------------------------------------------------------------
-train_data_to_graph = pd.DataFrame(train_data, columns=["Class", "Count", "Dataset"])
-
-
-train_data_to_graph.plot(kind='bar', x="Class", y="Count", figsize=(10,7))
-plt.title('Number of images in each class')
-plt.xlabel('Class')
-plt.ylabel('Number of images')
-plt.close()
-# ---------------------------------------------------------------------------------------------------
 
 
 # CHECKING OUTLIERS
@@ -163,7 +89,7 @@ def check_image_sizes(directory):
                     size_list = np.append(size_list, [[img.size[0], img.size[1]]], axis = 0)
     return size_list
 
-size_list = check_image_sizes('cloud_dataset/train')
+size_list = check_image_sizes(processed_train_dir)
 
 # Basic stats   
 # print(f"Size all {size_list.shape}")
@@ -224,17 +150,91 @@ plt.close()
 
 
 
-#CHECKING IF EVERYTHING WORKS
+
+
+# DEALING WITH OUTLIERS
 # ---------------------------------------------------------------------------------------------------
-images, labels = next(train_generator)
+def is_too_small(image):
+    width, height = image.size[0], image.size[1]
+    return width <= 100 or height <= 100 
+def is_too_big(image):
+    width, height = image.size[0], image.size[1]
+    return width >= 700 or height >= 550
+# ---------------------------------------------------------------------------------------------------
 
-plt.figure(figsize=(10, 10))
-for i in range(9):  # Wyświetl 9 obrazów
-    plt.subplot(3, 3, i + 1)
-    plt.imshow(images[i])
-    plt.title(f"Klasa: {labels[i]}")
-    plt.axis("off")
+# PREPROCESSING FUNCTIONS
+# ---------------------------------------------------------------------------------------------------
+def preprocessing_train(processed_train_dir):
+    for root, _, files in os.walk(processed_train_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if_check_image = check_image(file_path)
+            if not if_check_image:
+                continue
+            if_check_rgb = check_rgb(file_path)
+            if not if_check_rgb:
+                continue
+            with Image.open(file_path) as img:
+                if_to_small = is_too_small(img)
+            if if_to_small:
+                os.remove(file_path)
+                continue
+            with Image.open(file_path) as img:
+                if is_too_big(img):
+                    ratio = min(700/img.width, 550/img.height)
+                    new_size = (int(img.width*ratio), int(img.height*ratio))
+                    img.resize(new_size, Image.LANCZOS).save(file_path)
 
-print(f"Min: {images.min()}, Max: {images.max()}")
+preprocessing_train(processed_train_dir)
+
+def preprocessing_val(processed_val_dir):
+    for root, _, files in os.walk(processed_val_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if_check_image = check_image(file_path)
+            if not if_check_image:
+                continue
+            if_check_rgb = check_rgb(file_path)
+            if not if_check_rgb:
+                continue
+            with Image.open(file_path) as img:
+                if is_too_big(img):
+                    ratio = min(700/img.width, 550/img.height)
+                    new_size = (int(img.width*ratio), int(img.height*ratio))
+                    img.resize(new_size, Image.LANCZOS).save(file_path)
+preprocessing_val(processed_val_dir)
+# ---------------------------------------------------------------------------------------------------
+
+
+
+
+# GATHERING DATA INFORMATION
+# ---------------------------------------------------------------------------------------------------
+train_data = []
+
+x = 0
+classes = os.listdir(processed_train_dir)
+for class_name in classes:
+    class_dir = os.path.join(raw_train_dir, class_name)
+    num_images = len(os.listdir(class_dir))
+    print(f"Class {class_name}: {num_images} images")
+    train_data.append([class_name, num_images, "Train"])
+    x += num_images
+train_data.append(["All", x, "Train"])
+print()
+# ---------------------------------------------------------------------------------------------------
+
+
+
+
+# DATA PRESENTATION
+# ---------------------------------------------------------------------------------------------------
+train_data_to_graph = pd.DataFrame(train_data, columns=["Class", "Count", "Dataset"])
+
+
+train_data_to_graph.plot(kind='bar', x="Class", y="Count", figsize=(10,7))
+plt.title('Number of images in each class')
+plt.xlabel('Class')
+plt.ylabel('Number of images')
 plt.close()
 # ---------------------------------------------------------------------------------------------------
