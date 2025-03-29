@@ -2,5 +2,16 @@
 
 Co trzeba jeszcze zrobić
 
-- rozkminic czy moze brac pod uwage czesc obrazu, bo na dole moga byc drzewa albo cos
-  
+
+    balans klas
+    funkcja straty
+    prog klasyfikacji
+    metryki skupione na klasie 
+
+
+    dodac metryki i wykresy
+
+    transfer learning
+
+    keras tuner
+    

@@ -20,7 +20,7 @@ raw_val_dir = "raw_cloud_dataset/val"
 processed_train_dir = "cloud_dataset/train"
 processed_val_dir = "cloud_dataset/val"
 
-img_width, img_heigth = 150, 150
+img_width, img_heigth = 250, 250
 batch_size = 32
 
 if os.path.exists("cloud_dataset"):
@@ -83,10 +83,12 @@ def check_image_sizes(directory):
     size_list = np.empty((0, 2))
     for root, _, files in os.walk(directory):
         for file in files:
-            if file.endswith(('.jpg', '.jpeg', '.png')):
+            if file.lower().endswith(('.jpg', '.jpeg', '.png')):
                 img_path = os.path.join(root, file)
                 with Image.open(img_path) as img:
                     size_list = np.append(size_list, [[img.size[0], img.size[1]]], axis = 0)
+            else:
+                print(file)
     return size_list
 
 size_list = check_image_sizes(processed_train_dir)
@@ -238,3 +240,24 @@ plt.xlabel('Class')
 plt.ylabel('Number of images')
 plt.close()
 # ---------------------------------------------------------------------------------------------------
+
+
+def count_all_files(directory):
+    total_files = 0
+    for root, _, files in os.walk(directory):
+        total_files += len(files)
+    return total_files
+
+print("all files count train:")
+all_files_count_train = count_all_files("raw_cloud_dataset/train")
+print(all_files_count_train)
+print("processed files count train:")
+processed_files_count_train = count_all_files("cloud_dataset/train")
+print(processed_files_count_train)
+
+print("all files count val:")
+all_files_count_val = count_all_files("raw_cloud_dataset/val")
+print(all_files_count_val)
+print("processed files count val:")
+processed_files_count_val = count_all_files("cloud_dataset/val")
+print(processed_files_count_val)
