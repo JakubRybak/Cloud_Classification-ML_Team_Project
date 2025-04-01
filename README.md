@@ -15,5 +15,9 @@ Co trzeba jeszcze zrobić
 
     keras tuner
     
+<<<<<<< HEAD
     zmienic prezycje na mniejsza?
     
+=======
+    precision
+>>>>>>> 1e52526cb19af737cbedc743b04320efc7b87523
