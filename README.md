@@ -15,3 +15,5 @@ Co trzeba jeszcze zrobić
 
     keras tuner
     
+    zmienic prezycje na mniejsza?
+    
