@@ -15,3 +15,4 @@ Co trzeba jeszcze zrobić
 
     keras tuner
     
+    precision
