@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalization, Dropout, Activation, GlobalAveragePooling2D
-from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TensorBoard  # Removed ModelCheckpoint
 from keras.regularizers import l2
-from keras_tuner import RandomSearch
+from keras_tuner import RandomSearch, HyperModel
 from keras.applications import EfficientNetB0, MobileNetV2
 from keras.models import Model
 from keras import mixed_precision
@@ -41,7 +41,7 @@ if gpus:
         # 1. Enable dynamic memory growth to avoid allocating all GPU memory at once
         tf.config.experimental.set_memory_growth(gpus[0], True)
 
-        # 2. Optional: Set a memory limit (e.g., 90% of available memory).  
+        # 2. Optional: Set a memory limit (e.g., 90% of available memory).
         #    Note: Effectiveness may vary.
         # tf.config.set_logical_device_configuration(
         #     gpus[0],
@@ -120,73 +120,93 @@ callbacks = [
     )
 ]
 
-# FIRST MODEL - Convolutional Neural Network
-# Achieves good performance (80-90% accuracy)
-# Best Validation Results:
-# • Accuracy: 0.8929
-# • Precision: 0.9417
-# • Recall: 0.8839
+
+# HYPERPARAMETER TUNING WITH KERAS TUNER
 # ---------------------------------------------------------------------------------------------------
-model = Sequential([
+def model_builder(hp):
+    """
+    Builds the CNN model with tunable hyperparameters.
+
+    Args:
+        hp: HyperParameters object from keras_tuner.
+
+    Returns:
+        A compiled Keras model.
+    """
+    model = Sequential()
     # Input Layer
-    Conv2D(32, (3, 3), padding='same', input_shape=(img_width, img_height, 3)),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(32, (3, 3), padding='same'),  # Additional Conv2D layer
-    BatchNormalization(),
-    Activation('relu'),
-    MaxPooling2D((2, 2)),
-    Dropout(0.3),  # Increased dropout
+    model.add(Conv2D(hp.Choice('input_filters', values=[32, 64]), (3, 3), padding='same', input_shape=(img_width, img_height, 3)))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(Conv2D(hp.Choice('input_filters', values=[32, 64]), (3, 3), padding='same'))
+    model.add(BatchNormalization())
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Dropout(hp.Float('input_dropout', min_value=0.1, max_value=0.3, step=0.1)))
 
-    # Hidden Layer 1
-    Conv2D(64, (3, 3), padding='same'),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(64, (3, 3), padding='same'),  # Additional Conv2D layer
-    BatchNormalization(),
-    Activation('relu'),
-    MaxPooling2D((2, 2)),
-    Dropout(0.3),
-
-    # Hidden Layer 2
-    Conv2D(128, (3, 3), padding='same'),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(128, (3, 3), padding='same'),  # Additional Conv2D layer
-    BatchNormalization(),
-    Activation('relu'),
-    MaxPooling2D((2, 2)),
-    Dropout(0.4),  # Increased dropout for deeper layers
+    # Hidden Layers
+    for i in range(hp.Int('num_conv_layers', min_value=1, max_value=3)):
+        model.add(Conv2D(hp.Choice(f'conv_{i}_filters', values=[64, 128, 256]), (3, 3), padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(Conv2D(hp.Choice(f'conv_{i}_filters', values=[64, 128, 256]), (3, 3), padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(hp.Float(f'conv_{i}_dropout', min_value=0.1, max_value=0.5, step=0.1)))
 
     # Classifier
-    Flatten(),
-    Dense(256, activation='relu', kernel_regularizer=l2(0.01)),  # Larger Dense layer, L2 regularization
-    BatchNormalization(),
-    Dropout(0.6),  # Increased dropout
-    Dense(128, activation='relu', kernel_regularizer=l2(0.01)),  # Additional Dense layer
-    BatchNormalization(),
-    Dropout(0.5),
-    Dense(3, activation='softmax')  # Output layer for 3 classes
-])
+    model.add(Flatten())
+    model.add(Dense(hp.Choice('dense_units', values=[128, 256, 512]), activation='relu', kernel_regularizer=l2(0.01)))
+    model.add(BatchNormalization())
+    model.add(Dropout(hp.Float('dense_dropout', min_value=0.3, max_value=0.6, step=0.1)))
+    model.add(Dense(3, activation='softmax'))
+
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate=hp.Float('learning_rate', min_value=1e-4, max_value=1e-2, sampling='log')),
+        loss='categorical_crossentropy',
+        metrics=['accuracy',
+                 keras.metrics.Precision(name='precision'),
+                 keras.metrics.Recall(name='recall'),
+                 keras.metrics.AUC(name='auc')]
+    )
+
+    return model
 
 
-model.compile(
-    optimizer=keras.optimizers.Adam(learning_rate=0.001),  # Adam optimizer
-    loss='categorical_crossentropy',  # Loss function for multi-class classification
-    metrics=['accuracy',  # Track accuracy
-             keras.metrics.Precision(name='precision'),  # Track precision
-             keras.metrics.Recall(name='recall'),  # Track recall
-             keras.metrics.AUC(name='auc')]  # Track AUC
+# Instantiate the tuner
+tuner = RandomSearch(
+    model_builder,
+    objective='val_accuracy',
+    max_trials=20,  # Number of different hyperparameter combinations to try
+    executions_per_trial=1,  # Number of times to train each model
+    directory='tuner_dir',  # Directory to store tuning logs
+    project_name='cloud_classification'
 )
 
+# Perform the hyperparameter search
+tuner.search(
+    train_generator,
+    validation_data=validation_generator,
+    callbacks=callbacks  # Callbacks now exclude ModelCheckpoint
+)
 
-# Train the model with full monitoring using callbacks
-history = model.fit(
+# Get the best model
+best_model = tuner.get_best_models(num_models=1)[0]
+
+# Print a summary of the best model
+best_model.summary()
+
+# ---------------------------------------------------------------------------------------------------
+
+
+# 5. Train the best model
+history = best_model.fit(
     train_generator,
     steps_per_epoch=len(train_generator),  # Automatically calculate steps per epoch
     epochs=100,  # Maximum number of epochs (EarlyStopping will stop if necessary)
     validation_data=validation_generator,  # Use validation data for monitoring
-    callbacks=callbacks,  # Use the defined callbacks
+    callbacks=callbacks,  # Callbacks now exclude ModelCheckpoint
     verbose=1  # Display training progress
 )
 

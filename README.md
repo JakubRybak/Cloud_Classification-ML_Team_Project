@@ -20,4 +20,8 @@ Co trzeba jeszcze zrobić
     
     Nowe architektury:
         densenets...
-    
+
+        DenseNet-121
+        SENet 
+        CBAM 
+        

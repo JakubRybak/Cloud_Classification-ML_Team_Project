@@ -13,10 +13,10 @@ from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalizatio
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from keras.regularizers import l2
 from keras_tuner import RandomSearch
-from keras.applications import EfficientNetB0, MobileNetV2
+from keras.applications import ResNet50  # Changed from DenseNet121, etc.
 from keras.models import Model
-from keras import mixed_precision
 import datetime
+from keras import mixed_precision
 
 # Define directories for raw and processed datasets
 raw_train_dir = "raw_cloud_dataset/train"
@@ -41,7 +41,7 @@ if gpus:
         # 1. Enable dynamic memory growth to avoid allocating all GPU memory at once
         tf.config.experimental.set_memory_growth(gpus[0], True)
 
-        # 2. Optional: Set a memory limit (e.g., 90% of available memory).  
+        # 2. Optional: Set a memory limit (e.g., 90% of available memory).
         #    Note: Effectiveness may vary.
         # tf.config.set_logical_device_configuration(
         #     gpus[0],
@@ -72,7 +72,6 @@ train_generator = train_datagen.flow_from_directory(
     batch_size=batch_size,
     class_mode="categorical"  # Use categorical labels for multi-class classification
 )
-
 
 # Create a data generator for validation data (only rescaling, no augmentation)
 validation_datagen = ImageDataGenerator(
@@ -120,95 +119,68 @@ callbacks = [
     )
 ]
 
-# FIRST MODEL - Convolutional Neural Network
-# Achieves good performance (80-90% accuracy)
-# Best Validation Results:
-# • Accuracy: 0.8929
-# • Precision: 0.9417
-# • Recall: 0.8839
+# FIFTH MODEL: SE-Net (e.g., SE-ResNet50)
+# Using an SE-Net architecture for transfer learning
 # ---------------------------------------------------------------------------------------------------
-model = Sequential([
-    # Input Layer
-    Conv2D(32, (3, 3), padding='same', input_shape=(img_width, img_height, 3)),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(32, (3, 3), padding='same'),  # Additional Conv2D layer
-    BatchNormalization(),
-    Activation('relu'),
-    MaxPooling2D((2, 2)),
-    Dropout(0.3),  # Increased dropout
 
-    # Hidden Layer 1
-    Conv2D(64, (3, 3), padding='same'),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(64, (3, 3), padding='same'),  # Additional Conv2D layer
-    BatchNormalization(),
-    Activation('relu'),
-    MaxPooling2D((2, 2)),
-    Dropout(0.3),
+# Choose a specific SE-Net architecture (e.g., SE-ResNet50, SE-ResNeXt50)
+# You might need to install keras-applications separately: pip install keras-applications
+base_model = ResNet50(weights='imagenet', include_top=False, input_shape=(img_width, img_height, 3))
 
-    # Hidden Layer 2
-    Conv2D(128, (3, 3), padding='same'),
-    BatchNormalization(),
-    Activation('relu'),
-    Conv2D(128, (3, 3), padding='same'),  # Additional Conv2D layer
-    BatchNormalization(),
-    Activation('relu'),
-    MaxPooling2D((2, 2)),
-    Dropout(0.4),  # Increased dropout for deeper layers
+# Add custom layers on top of the base model
+x = base_model.output
+x = GlobalAveragePooling2D()(x)  # Global average pooling to reduce spatial dimensions
+x = Dense(512, activation='relu')(x)  # Dense layer (you can adjust the number of neurons)
+predictions = Dense(3, activation='softmax')(x)  # Output layer for 3 classes
 
-    # Classifier
-    Flatten(),
-    Dense(256, activation='relu', kernel_regularizer=l2(0.01)),  # Larger Dense layer, L2 regularization
-    BatchNormalization(),
-    Dropout(0.6),  # Increased dropout
-    Dense(128, activation='relu', kernel_regularizer=l2(0.01)),  # Additional Dense layer
-    BatchNormalization(),
-    Dropout(0.5),
-    Dense(3, activation='softmax')  # Output layer for 3 classes
-])
+# Define the complete model
+model = Model(inputs=base_model.input, outputs=predictions)
 
+# Freeze the weights of most SE-Net layers for transfer learning
+for layer in base_model.layers[:-20]:  # Freeze all but the last 20 layers
+    layer.trainable = False
 
+for layer in base_model.layers[-20:]:  # Unfreeze the last 20 layers for fine-tuning
+    layer.trainable = True
+
+# Compile the model with the new layers
 model.compile(
-    optimizer=keras.optimizers.Adam(learning_rate=0.001),  # Adam optimizer
-    loss='categorical_crossentropy',  # Loss function for multi-class classification
-    metrics=['accuracy',  # Track accuracy
-             keras.metrics.Precision(name='precision'),  # Track precision
-             keras.metrics.Recall(name='recall'),  # Track recall
-             keras.metrics.AUC(name='auc')]  # Track AUC
+    optimizer=keras.optimizers.Adam(learning_rate=0.00001),  # Very low learning rate for fine-tuning
+    loss='categorical_crossentropy',
+    metrics=['accuracy',
+             keras.metrics.Precision(name='precision'),
+             keras.metrics.Recall(name='recall'),
+             keras.metrics.AUC(name='auc')]
 )
 
-
-# Train the model with full monitoring using callbacks
+# Train the model
 history = model.fit(
     train_generator,
     steps_per_epoch=len(train_generator),  # Automatically calculate steps per epoch
-    epochs=100,  # Maximum number of epochs (EarlyStopping will stop if necessary)
+    epochs=50,  # Maximum number of epochs (EarlyStopping will stop if necessary)
     validation_data=validation_generator,  # Use validation data for monitoring
     callbacks=callbacks,  # Use the defined callbacks
     verbose=1  # Display training progress
 )
 
-
 # Plot training history
 plt.figure(figsize=(15, 5))
 
-# Plot Accuracy
+# Accuracy
 plt.subplot(1, 3, 1)
 plt.plot(history.history['accuracy'], label='Train')
 plt.plot(history.history['val_accuracy'], label='Validation')
 plt.title('Accuracy')
 plt.legend()
 
-# Plot Precision
+# Precision
 plt.subplot(1, 3, 2)
 plt.plot(history.history['precision'], label='Train')
 plt.plot(history.history['val_precision'], label='Validation')
 plt.title('Precision')
 plt.legend()
 
-# Plot Recall
+# Recall
 plt.subplot(1, 3, 3)
 plt.plot(history.history['recall'], label='Train')
 plt.plot(history.history['val_recall'], label='Validation')
@@ -224,8 +196,7 @@ print(f"• Accuracy: {max(history.history['val_accuracy']):.4f}")
 print(f"• Precision: {max(history.history['val_precision']):.4f}")
 print(f"• Recall: {max(history.history['val_recall']):.4f}")
 
-# Optional: Instructions for running TensorBoard
-# print(f"\nTo run TensorBoard, execute in the terminal:")
-# print(f"tensorboard --logdir {log_dir}")
-# print("Then open in your browser: http://localhost:6006")
+print(f"\nTo run TensorBoard, execute in the terminal:")
+print(f"tensorboard --logdir {log_dir}")
+print("Then open in your browser: http://localhost:6006")
 # ---------------------------------------------------------------------------------------------------
