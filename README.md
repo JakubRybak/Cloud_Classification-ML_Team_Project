@@ -19,9 +19,5 @@ Co trzeba jeszcze zrobić
         keras tuner
     
     Nowe architektury:
-        densenets...
-
-        DenseNet-121
-        SENet 
         CBAM 
         
