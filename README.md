@@ -15,13 +15,11 @@ Co trzeba jeszcze zrobić
     Wizualizacja:
         wykresy
 
-    Transfer learning:
-        jakieś nowe modele
-
     Hiperparametry:
         keras tuner
     
-    Nowe architektury:
+
+    Architektura:
         CBAM 
         
 
