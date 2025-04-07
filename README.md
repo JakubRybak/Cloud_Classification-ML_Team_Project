@@ -3,6 +3,9 @@
 Co trzeba jeszcze zrobić
 
 
+    Analiza:
+        Confusion matrix
+        Analiza ktore klasy jak sa rozpoznawane
     
     Balans klas:
         funkcja straty
@@ -19,9 +22,7 @@ Co trzeba jeszcze zrobić
         keras tuner
     
     Nowe architektury:
-        densenets...
-
-        DenseNet-121
-        SENet 
         CBAM 
         
+
+Czy jak jest drop... to jak czy wtedy accuracy, recall... jest sprawdzany na pelnej sieci czy zdropowanej?
