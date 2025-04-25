@@ -7,7 +7,7 @@ from tensorflow import keras
 # from keras.models import Sequential # Not used directly
 from keras.layers import Dense, BatchNormalization, Dropout, Activation, GlobalAveragePooling2D # Import necessary layers
 # from keras.regularizers import l2 # Not used directly
-# from keras import mixed_precision # Commented out
+from keras import mixed_precision # Commented out
 from keras.applications import MobileNetV2 # Import MobileNetV2
 from keras.models import Model
 # from keras.applications import EfficientNetB0 # Not used here
@@ -28,12 +28,12 @@ import evaluation_utils
 def setup_environment():
     """Configures the TensorFlow environment (GPU)."""
     # Mixed precision is commented out in this version.
-    # try:
-    #     policy = mixed_precision.Policy('mixed_float16')
-    #     mixed_precision.set_global_policy(policy)
-    #     print("Mixed Precision (mixed_float16) configured.")
-    # except Exception as e:
-    #     print(f"Failed to configure Mixed Precision: {e}")
+    try:
+        policy = mixed_precision.Policy('mixed_float16')
+        mixed_precision.set_global_policy(policy)
+        print("Mixed Precision (mixed_float16) configured.")
+    except Exception as e:
+        print(f"Failed to configure Mixed Precision: {e}")
 
     # GPU Configuration
     gpus = tf.config.list_physical_devices('GPU')
