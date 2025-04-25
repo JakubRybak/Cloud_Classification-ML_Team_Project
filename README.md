@@ -2,32 +2,28 @@
 
 Co trzeba jeszcze zrobić
 
+Dla każdego modelu:
+wykresy ladne 
+    stała skala
+    ROC dodac
+I Macierze błedu
 
 
-    Wizualizacja:
-        wykresy
-        zeby byla stala skala
-
-    Hiperparametry:
-        keras tuner
+Hiperparametry:
+    keras tuner
+    najpierw bayes pozniej random pozniej grid
     
+Interpretowalność, które obszary sa najważniejsze
+
+
+
 
     Architektura:
         CBAM 
         VGG (chyba za duze wymagania)
         Inception (chyba za duze wymagania)
-    
-    Interpretowalność
-        
-    najpierw bayes hiperparametry zeby wiedziec zakres
 
 
 
-model1
-remodel1
-model 5
-
-hiperparametry
 
 
-interpretowalnosc
