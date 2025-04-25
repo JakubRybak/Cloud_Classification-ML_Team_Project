@@ -1,157 +1,154 @@
-# train.py
-"""Główny skrypt do trenowania modelu nr 2 (CNN)."""
+# model_2.py
+# Previous filename was train.py
+"""Main script for training model #2 (EfficientNetB0 Transfer Learning)."""
 
 import tensorflow as tf
 from tensorflow import keras
-from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalization, Dropout, Activation
-from keras.regularizers import l2
-from keras import mixed_precision
+# from keras.models import Sequential # Not used directly here
+from keras.layers import Dense, BatchNormalization, Dropout, Activation, GlobalAveragePooling2D # Import necessary layers
+# from keras.regularizers import l2 # Not used directly here
+# from keras import mixed_precision # Commented out in setup_environment
 from keras.applications import EfficientNetB0
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalization, Dropout, Activation, GlobalAveragePooling2D
 from keras.models import Model
 import os
 import sys
 
-# Dodaj ścieżkę do katalogu z modułami, jeśli nie jest w PYTHONPATH
+# Add the directory containing modules to PYTHONPATH if necessary
 # current_dir = os.path.dirname(os.path.abspath(__file__))
 # sys.path.append(current_dir)
 
-# Importuj własne moduły
+# Import custom modules
 import config
 import data_utils
 import metrics
-import callbacks as cb # Używamy aliasu, żeby nie kolidowało z keras.callbacks
+import callbacks as cb # Use an alias to avoid collision with keras.callbacks
 import evaluation_utils
 
 def setup_environment():
-    """Konfiguruje środowisko TensorFlow (GPU, Mixed Precision)."""
-    # Mixed Precision
+    """Configures the TensorFlow environment (GPU)."""
+    # Mixed precision is commented out in this version.
     # try:
     #     policy = mixed_precision.Policy('mixed_float16')
     #     mixed_precision.set_global_policy(policy)
-    #     print("Mixed Precision (mixed_float16) skonfigurowane.")
+    #     print("Mixed Precision (mixed_float16) configured.")
     # except Exception as e:
-    #     print(f"Nie udało się skonfigurować Mixed Precision: {e}")
+    #     print(f"Failed to configure Mixed Precision: {e}")
 
-    # Konfiguracja GPU
+    # GPU Configuration
     gpus = tf.config.list_physical_devices('GPU')
     if gpus:
         try:
+            # Enable dynamic memory growth for the first GPU
             tf.config.experimental.set_memory_growth(gpus[0], True)
-            print(f"Znaleziono GPU: {gpus[0]}. Włączono dynamiczny wzrost pamięci.")
-            # Opcjonalne: Ustawienie limitu pamięci
+            print(f"GPU found: {gpus[0]}. Enabled dynamic memory growth.")
+            # Optional: Set memory limit
             # tf.config.set_logical_device_configuration(
             #     gpus[0],
-            #     [tf.config.LogicalDeviceConfiguration(memory_limit=4096)] # np. 4GB
+            #     [tf.config.LogicalDeviceConfiguration(memory_limit=4096)] # e.g., 4GB
             # )
-            # print("Ustawiono limit pamięci GPU (jeśli odkomentowane).")
+            # print("GPU memory limit set (if uncommented).")
         except RuntimeError as e:
-            print(f"Błąd podczas konfiguracji GPU: {e}")
+            print(f"Error during GPU configuration: {e}")
     else:
-        print("Nie znaleziono GPU. Trening będzie odbywał się na CPU.")
+        print("No GPU found. Training will run on CPU.")
 
 def build_model():
-    """Buduje prosty model CNN (jak w oryginalnym pliku)."""
+    """Builds the model using EfficientNetB0 as a base for transfer learning."""
     # Create the base EfficientNetB0 model, pre-trained on ImageNet
     base_model = EfficientNetB0(weights='imagenet', include_top=False, input_shape=(config.IMG_WIDTH, config.IMG_HEIGHT, 3))
 
     # Add custom layers on top of the base model
     x = base_model.output
-    x = GlobalAveragePooling2D()(x)  # Global average pooling to reduce spatial dimensions
-    x = Dense(512, activation='relu')(x)  # Dense layer (you can adjust the number of neurons)
+    x = GlobalAveragePooling2D()(x)  # Global average pooling layer
+    x = Dense(512, activation='relu')(x)  # Dense layer
     predictions = Dense(3, activation='softmax')(x)  # Output layer for 3 classes
 
-    # Define the complete model
-    model = Model(inputs=base_model.input, outputs=predictions)
+    # Define the complete model by specifying inputs and outputs
+    model = Model(inputs=base_model.input, outputs=predictions, name="EfficientNetB0_Transfer")
 
-    # Freeze the weights of most EfficientNetB0 layers for transfer learning
-    for layer in base_model.layers[:-100]:  # Freeze all but the last 30 layers
+    # --- Layer Freezing Strategy ---
+    # Freeze all layers except the last N layers for fine-tuning
+    num_layers_to_fine_tune = 100 # Example: Fine-tune the top 100 layers
+    for layer in base_model.layers[:-num_layers_to_fine_tune]:
         layer.trainable = False
-    for layer in base_model.layers[-100:]:  # Unfreeze the last 30 layers for fine-tuning
+    for layer in base_model.layers[-num_layers_to_fine_tune:]:
         layer.trainable = True
+
+    print(f"EfficientNetB0 base model loaded. Top {num_layers_to_fine_tune} layers set to trainable.")
+    model.summary() # Print model summary
     return model
 
 def main():
-    """Główna funkcja uruchamiająca proces."""
-    print("Rozpoczynanie skryptu treningowego...")
+    """Main function to run the training and evaluation process."""
+    print("Starting training script for EfficientNetB0 model...")
     setup_environment()
 
-    # 1. Przygotowanie danych
-    print("\n--- Przygotowanie Danych ---")
+    # 1. Data Preparation
+    print("\n--- Data Preparation ---")
     train_generator = data_utils.create_train_generator()
     validation_generator = data_utils.create_validation_generator()
-    num_classes = train_generator.num_classes # Pobierz liczbę klas z generatora
+    num_classes = train_generator.num_classes # Get number of classes from generator
 
-    # Upewnij się, że indeksy klas w config pasują do generatora
-    # Można dodać walidację config.CLEAR_IDX itp. vs train_generator.class_indices
+    # Optional: Ensure class indices in config match the generator
+    # Validation can be added for config.CLEAR_IDX etc. vs train_generator.class_indices
 
-    # 2. Budowa modelu
-    print("\n--- Budowa Modelu ---")
-    model = build_model()
+    # 2. Model Building
+    print("\n--- Model Building ---")
+    model = build_model() # build_model currently assumes 3 classes, adjust if needed or pass num_classes
 
-    # 3. Przygotowanie metryk i kompilacja
-    print("\n--- Kompilacja Modelu ---")
-    # Utwórz instancję niestandardowej metryki
+    # 3. Metrics Preparation and Compilation
+    print("\n--- Model Compilation ---")
+    # Create instance of the custom metric
     weather_penalty = metrics.WeightedWeatherPenalty(
-        clear_idx=config.CLEAR_IDX, # Użyj wartości z config
-        cloudy_idx=config.CLOUDY_IDX,
-        rainy_idx=config.RAINY_IDX,
-        critical_penalty=config.CRITICAL_PENALTY,
-        non_critical_penalty=config.NON_CRITICAL_PENALTY
+        clear_idx=config.CLEAR_IDX, cloudy_idx=config.CLOUDY_IDX, rainy_idx=config.RAINY_IDX,
+        critical_penalty=config.CRITICAL_PENALTY, non_critical_penalty=config.NON_CRITICAL_PENALTY
     )
-
-    # Zdefiniuj listę metryk do użycia
+    # Define the list of metrics
     model_metrics = [
-        'accuracy',
-        weather_penalty, # Dodaj instancję metryki
-        keras.metrics.Precision(name='precision'),
-        keras.metrics.Recall(name='recall'),
-        keras.metrics.AUC(name='auc')
+        'accuracy', weather_penalty, keras.metrics.Precision(name='precision'),
+        keras.metrics.Recall(name='recall'), keras.metrics.AUC(name='auc')
     ]
-
     model.compile(
         optimizer=keras.optimizers.Adam(learning_rate=config.LEARNING_RATE),
         loss='categorical_crossentropy',
         metrics=model_metrics
-    ) #
-    print("Model skompilowany.")
+    )
+    print("Model compiled.")
 
-    # 4. Przygotowanie callbacków
-    print("\n--- Przygotowanie Callbacków ---")
-    # Monitoruj niestandardową metrykę
+    # 4. Callback Preparation
+    print("\n--- Callback Preparation ---")
+    # Monitor the custom validation metric
     monitor_metric = f'val_{weather_penalty.name}'
-    training_callbacks = cb.get_callbacks(monitor_metric=monitor_metric, model_checkpoint=False) # Wyłącz ModelCheckpoint, jeśli niepotrzebny
-    print(f"Callbacki przygotowane. Monitorowana metryka: {monitor_metric}")
+    training_callbacks = cb.get_callbacks(monitor_metric=monitor_metric, model_checkpoint=False)
+    print(f"Callbacks prepared. Monitored metric: {monitor_metric}")
 
-    # 5. Trening modelu
-    print("\n--- Rozpoczęcie Treningu ---")
+    # 5. Model Training
+    print("\n--- Starting Training ---")
     history = model.fit(
         train_generator,
         steps_per_epoch=len(train_generator),
-        epochs=config.EPOCHS, # Użyj wartości z config
+        epochs=config.EPOCHS, # Use number of epochs from config
         validation_data=validation_generator,
-        validation_steps=len(validation_generator), # Można dodać dla pewności
-        class_weight=config.CLASS_WEIGHTS, # Użyj wartości z config
+        validation_steps=len(validation_generator),
+        class_weight=config.CLASS_WEIGHTS, # Use class weights from config
         callbacks=training_callbacks,
         verbose=1
-    ) #
-    print("--- Trening Zakończony ---")
+    )
+    print("--- Training Finished ---")
 
-    # 6. Ewaluacja modelu i wizualizacja
-    print("\n--- Ewaluacja i Wizualizacja ---")
-    # Wizualizacja historii treningu
+    # 6. Model Evaluation and Visualization
+    print("\n--- Evaluation and Visualization ---")
+    # Visualize training history
     evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall'])
-
-    # Pełna ewaluacja na zbiorze walidacyjnym
+    # Perform full evaluation on the validation set
     evaluation_utils.evaluate_model(model, validation_generator, custom_metric_name=weather_penalty.name)
 
-    # Opcjonalnie: Zapisz ostateczny model
-    # final_model_path = "final_cnn_model.keras"
+    # Optional: Save the final model
+    # final_model_path = "final_efficientnet_model.keras"
     # model.save(final_model_path)
-    # print(f"Ostateczny model zapisany w: {final_model_path}")
+    # print(f"Final model saved to: {final_model_path}")
 
-    print("\nSkrypt zakończył działanie.")
+    print("\nScript finished.")
 
 if __name__ == "__main__":
     main()
