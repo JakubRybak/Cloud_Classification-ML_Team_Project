@@ -21,4 +21,4 @@ Interpretowalność, które obszary sa najważniejsze
     Architektura:
         CBAM 
         VGG (chyba za duze wymagania)
-        Inception (chyba za duze wymagania)
+        inception
