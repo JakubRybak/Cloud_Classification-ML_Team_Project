@@ -3,17 +3,10 @@
 Co trzeba jeszcze zrobić
 
 
-    Analiza:
-        Confusion matrix
-        Analiza ktore klasy jak sa rozpoznawane
-    
-    Balans klas:
-        funkcja straty
-        prog klasyfikacji
-        metryki skupione na klasie 
 
     Wizualizacja:
         wykresy
+        zeby byla stala skala
 
     Hiperparametry:
         keras tuner
@@ -21,6 +14,20 @@ Co trzeba jeszcze zrobić
 
     Architektura:
         CBAM 
+        VGG (chyba za duze wymagania)
+        Inception (chyba za duze wymagania)
+    
+    Interpretowalność
         
+    najpierw bayes hiperparametry zeby wiedziec zakres
 
-Czy jak jest drop... to jak czy wtedy accuracy, recall... jest sprawdzany na pelnej sieci czy zdropowanej?
+
+
+model1
+remodel1
+model 5
+
+hiperparametry
+
+
+interpretowalnosc
