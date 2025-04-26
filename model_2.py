@@ -139,7 +139,7 @@ def main():
     # 6. Model Evaluation and Visualization
     print("\n--- Evaluation and Visualization ---")
     # Visualize training history
-    evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall'])
+    evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall', 'auc'])
     # Perform full evaluation on the validation set
     evaluation_utils.evaluate_model(model, validation_generator, custom_metric_name=weather_penalty.name)
 

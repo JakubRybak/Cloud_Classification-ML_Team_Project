@@ -6,13 +6,15 @@ import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 import tensorflow as tf # Needed for model.evaluate() potentially using TF operations
 
-def plot_training_history(history, metrics_to_plot=['accuracy', 'loss', 'precision', 'recall', 'weighted_weather_penalty']):
+def plot_training_history(history, metrics_to_plot=['accuracy', 'loss', 'precision', 'recall', 'weighted_weather_penalty', 'auc']):
     """
-    Plots training and validation metrics from a Keras History object.
+    Plots training and validation metrics from a Keras History object
+    in a 2x3 grid layout. Sets the Y-axis limit to [0, 1] for specified plots.
 
     Args:
         history (keras.callbacks.History): History object returned by model.fit().
         metrics_to_plot (list): List of metric names (strings) to plot.
+                                Should ideally contain 6 or fewer metrics.
                                 Assumes validation metrics are prefixed with 'val_'.
     """
     num_metrics = len(metrics_to_plot)
@@ -20,34 +22,53 @@ def plot_training_history(history, metrics_to_plot=['accuracy', 'loss', 'precisi
         print("No metrics specified for plotting.")
         return
 
-    plt.figure(figsize=(5 * num_metrics, 5))
+    plt.figure(figsize=(18, 10)) # Figure size for 2x3 grid
 
-    for i, metric in enumerate(metrics_to_plot):
-        plt.subplot(1, num_metrics, i + 1)
+    # Define indices (0-based) of plots to have fixed Y-axis [0, 1]
+    # Corresponds to 1st, 3rd, 4th, 5th, 6th plot in the 2x3 grid
+    fixed_ylim_indices = {0, 2, 3, 4, 5}
+
+    # Limit plotting to max 6 metrics for the 2x3 grid
+    if num_metrics > 6:
+        print("Warning: More than 6 metrics specified. Only the first 6 will be plotted.")
+        num_metrics_to_plot = 6
+    else:
+        num_metrics_to_plot = num_metrics
+
+    for i in range(num_metrics_to_plot):
+        metric = metrics_to_plot[i]
+        plt.subplot(2, 3, i + 1) # Create subplot in 2x3 grid
+
         plot_metric = False
-        # Check if the training metric exists in the history
+        # Check and plot training metric
         if metric in history.history:
             plt.plot(history.history[metric], label=f'Train {metric.capitalize()}')
             plot_metric = True
 
-        # Check if the corresponding validation metric exists
+        # Check and plot validation metric
         val_metric = f'val_{metric}'
         if val_metric in history.history:
             plt.plot(history.history[val_metric], label=f'Validation {metric.capitalize()}')
             plot_metric = True
 
         if not plot_metric:
-            # Neither train nor validation metric was found
-             print(f"Warning: Metric '{metric}' or '{val_metric}' not found in history.")
-             plt.title(f'{metric.capitalize()} (No Data)')
-             continue # Continue to the next metric
+            print(f"Warning: Metric '{metric}' or '{val_metric}' not found in history for subplot {i+1}.")
+            plt.title(f'{metric.capitalize()} (No Data)')
+            continue # Skip rest of the loop for this subplot
 
         plt.title(f'{metric.capitalize()} History')
         plt.xlabel('Epoch')
         plt.ylabel(metric.capitalize())
         plt.legend()
+        plt.grid(True)
 
-    plt.tight_layout() # Adjust subplots to prevent overlap
+        # --- ZMIANA: Ustawienie limitu osi Y ---
+        # Check if the current plot index `i` is in the set of indices requiring fixed Y-lim
+        if i in fixed_ylim_indices:
+            plt.ylim(0, 1) # Set Y-axis limits from 0 to 1
+        plt.xlim(left=0)
+
+    plt.tight_layout(pad=3.0) # Adjust layout
     plt.show()
 
 def evaluate_model(model, validation_generator, custom_metric_name='weighted_weather_penalty'):

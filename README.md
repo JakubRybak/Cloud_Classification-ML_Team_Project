@@ -2,12 +2,6 @@
 
 Co trzeba jeszcze zrobić
 
-Dla każdego modelu:
-wykresy ladne 
-    stała skala
-    ROC dodac
-I Macierze błedu
-
 
 Hiperparametry:
     keras tuner
@@ -16,7 +10,7 @@ Hiperparametry:
 Interpretowalność, które obszary sa najważniejsze
 
 
-
+Shab
 
     Architektura:
         CBAM 

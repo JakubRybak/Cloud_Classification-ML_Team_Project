@@ -19,7 +19,7 @@ IMG_SHAPE = (IMG_WIDTH, IMG_HEIGHT, 3) # Expected image shape (height, width, ch
 
 # --- Training Parameters ---
 BATCH_SIZE = 16 # Number of samples per gradient update.
-EPOCHS = 50     # Maximum number of epochs to train for.
+EPOCHS = 70     # Maximum number of epochs to train for.
 
 # --- Logging ---
 LOG_DIR_BASE = "logs/fit" # Base directory for TensorBoard logs.
@@ -42,7 +42,7 @@ CRITICAL_PENALTY = 1.0      # Penalty for misclassifying a critical class.
 NON_CRITICAL_PENALTY = 0.3  # Penalty for misclassifying a non-critical class.
 
 # --- Callback Settings ---
-EARLY_STOPPING_PATIENCE = 15 # Patience for EarlyStopping callback.
+EARLY_STOPPING_PATIENCE = 25 # Patience for EarlyStopping callback.
 REDUCE_LR_PATIENCE = 5       # Patience for ReduceLROnPlateau callback.
 REDUCE_LR_FACTOR = 0.2       # Factor for reducing learning rate in ReduceLROnPlateau.
 MIN_LR = 1e-6                # Minimum learning rate for ReduceLROnPlateau.
