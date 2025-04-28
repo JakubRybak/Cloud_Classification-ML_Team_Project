@@ -142,9 +142,9 @@ def main():
     # 6. Model Evaluation and Visualization
     print("\n--- Evaluation and Visualization ---")
     # Visualize training history
-    evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall', 'auc'])
+    evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall', 'auc'], name='model_5')
     # Perform full evaluation on the validation set
-    evaluation_utils.evaluate_model(model, validation_generator, custom_metric_name=weather_penalty.name)
+    evaluation_utils.evaluate_model(model, validation_generator, custom_metric_name=weather_penalty.name, name='model_5')
 
     # Optional: Save the final model
     # final_model_path = "final_resnet_model.keras"

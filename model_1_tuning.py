@@ -4,6 +4,7 @@ from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, BatchNormalization, Dropout, Activation
 from keras.regularizers import l2
 from keras import mixed_precision
+import keras_tuner
 import os
 
 from keras import backend as K
@@ -114,14 +115,14 @@ def main():
     tuner = kt.RandomSearch(
         build_model,
         objective='val_accuracy',
-        max_trials=20,
+        max_trials=1,
         executions_per_trial=1,
         directory='tuner_results',
         project_name='cnn_tuning'
     )
 
     tuner.search(train_generator,
-                 epochs=3,
+                 epochs=1,
                  validation_data=validation_generator)
 
     best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]

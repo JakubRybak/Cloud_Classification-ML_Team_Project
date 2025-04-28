@@ -61,6 +61,7 @@ def build_model():
         # Ensure the custom metric definition is available
         custom_objects = {'WeightedWeatherPenalty': metrics.WeightedWeatherPenalty}
         # Load your saved model
+        # model = keras.models.load_model('new_best_model.keras', custom_objects=custom_objects)
         model = keras.models.load_model('best_model.keras', custom_objects=custom_objects)
         print("Model loaded successfully.")
 
@@ -177,9 +178,9 @@ def main():
     # 6. Model Evaluation and Visualization
     print("\n--- Evaluation and Visualization ---")
     # Visualize training history
-    evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall', 'auc'])
+    evaluation_utils.plot_training_history(history, metrics_to_plot=['accuracy', 'loss', weather_penalty.name, 'precision', 'recall', 'auc'], name='re_model_1')
     # Perform full evaluation on the validation set
-    evaluation_utils.evaluate_model(model, validation_generator, custom_metric_name=weather_penalty.name)
+    evaluation_utils.evaluate_model(model, validation_generator, custom_metric_name=weather_penalty.name, name='re_model_1')
 
     # Optional: Save the fine-tuned model
     # final_model_path = "final_finetuned_model.keras"

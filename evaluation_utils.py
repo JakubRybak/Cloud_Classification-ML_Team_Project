@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 import tensorflow as tf # Needed for model.evaluate() potentially using TF operations
+import os
 
-def plot_training_history(history, metrics_to_plot=['accuracy', 'loss', 'precision', 'recall', 'weighted_weather_penalty', 'auc']):
+def plot_training_history(history, metrics_to_plot=['accuracy', 'loss', 'precision', 'recall', 'weighted_weather_penalty', 'auc'], name="name"):
     """
     Plots training and validation metrics from a Keras History object
     in a 2x3 grid layout. Sets the Y-axis limit to [0, 1] for specified plots.
@@ -69,9 +70,14 @@ def plot_training_history(history, metrics_to_plot=['accuracy', 'loss', 'precisi
         plt.xlim(left=0)
 
     plt.tight_layout(pad=3.0) # Adjust layout
+    
+    # Create directory if not exists
+    os.makedirs('new_plots', exist_ok=True)
+    # Save the plot
+    plt.savefig(f'new_plots/{name}_training_plot.png')
     plt.show()
 
-def evaluate_model(model, validation_generator, custom_metric_name='weighted_weather_penalty'):
+def evaluate_model(model, validation_generator, custom_metric_name='weighted_weather_penalty', name="name"):
     """
     Performs comprehensive model evaluation using model.evaluate() and sklearn metrics.
 
@@ -88,7 +94,7 @@ def evaluate_model(model, validation_generator, custom_metric_name='weighted_wea
     Returns:
         dict or None: Results from model.evaluate() as a dictionary, or None if evaluation failed.
     """
-
+    plot_name = name
     print("\n" + "="*20 + " Starting Model Evaluation " + "="*20)
     evaluation_results = None # Initialize results
 
@@ -145,6 +151,12 @@ def evaluate_model(model, validation_generator, custom_metric_name='weighted_wea
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
         disp.plot(cmap=plt.cm.Blues)
         plt.title("Confusion Matrix")
+        
+
+        # Create directory if not exists
+        os.makedirs('new_confusion_matrixes', exist_ok=True)
+        # Save confusion matrix plot
+        plt.savefig(f'new_confusion_matrixes/{plot_name}_confusion_matrix.png')
         plt.show()
 
         # Calculate and print Classification Report

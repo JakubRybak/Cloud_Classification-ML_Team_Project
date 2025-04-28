@@ -19,6 +19,7 @@ raw_val_dir = "raw_cloud_dataset/val"
 
 processed_train_dir = "cloud_dataset/train"
 processed_val_dir = "cloud_dataset/val"
+processed_test_dir = "cloud_dataset/test"
 
 img_width, img_heigth = 250, 250
 batch_size = 32
@@ -29,6 +30,7 @@ os.makedirs("cloud_dataset", exist_ok=True)
 
 shutil.copytree("raw_cloud_dataset/train", "cloud_dataset/train")
 shutil.copytree("raw_cloud_dataset/val", "cloud_dataset/val")
+shutil.copytree("raw_cloud_dataset/test", "cloud_dataset/test")
 # ---------------------------------------------------------------------------------------------------
 
 
@@ -204,7 +206,23 @@ def preprocessing_val(processed_val_dir):
                     ratio = min(700/img.width, 550/img.height)
                     new_size = (int(img.width*ratio), int(img.height*ratio))
                     img.resize(new_size, Image.LANCZOS).save(file_path)
+def preprocessing_test(processed_test_dir):
+    for root, _, files in os.walk(processed_test_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if_check_image = check_image(file_path)
+            if not if_check_image:
+                continue
+            if_check_rgb = check_rgb(file_path)
+            if not if_check_rgb:
+                continue
+            with Image.open(file_path) as img:
+                if is_too_big(img):
+                    ratio = min(700/img.width, 550/img.height)
+                    new_size = (int(img.width*ratio), int(img.height*ratio))
+                    img.resize(new_size, Image.LANCZOS).save(file_path)
 preprocessing_val(processed_val_dir)
+preprocessing_test(processed_test_dir)
 # ---------------------------------------------------------------------------------------------------
 
 

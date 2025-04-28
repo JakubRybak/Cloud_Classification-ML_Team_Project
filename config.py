@@ -11,6 +11,8 @@ RAW_TEST_DIR = os.path.join(RAW_DATA_DIR, "test")
 RAW_VAL_DIR = os.path.join(RAW_DATA_DIR, "val")
 PROCESSED_TRAIN_DIR = os.path.join(PROCESSED_DATA_DIR, "train")
 PROCESSED_VAL_DIR = os.path.join(PROCESSED_DATA_DIR, "val")
+PROCESSED_TEST_DIR = os.path.join(PROCESSED_DATA_DIR, "test")
+
 
 # --- Image Parameters ---
 IMG_WIDTH = 224
@@ -49,3 +51,5 @@ MIN_LR = 1e-6                # Minimum learning rate for ReduceLROnPlateau.
 
 # --- Optimizer Parameters ---
 LEARNING_RATE = 0.001 # Initial learning rate for the optimizer.
+
+NUM_CLASSES = 3
